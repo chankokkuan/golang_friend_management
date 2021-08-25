@@ -18,3 +18,18 @@ cp config.sample.yaml config.yaml
 ```
 go run ./cmd/httpd/main.go
 ```
+
+## To access the APIs which required JWT Token
+Go to https://jwt.io/, choose HS256 Algorithm, input the payload with your claims and replace your jwt secret key with `your-256-bit-secret`
+
+Claims Example:
+```
+{
+	"user_id" "497f6eca-6276-4993-bfeb-53cbbbba6f08",
+	"name": "John",
+	"email": "john@example.com",
+	"roles": ["User"]
+}
+```
+
+After you get the token, add the token into the `Authorization: Bearer ${token}` in your http request header
