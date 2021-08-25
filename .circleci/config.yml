@@ -1,0 +1,56 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:latest-node
+        auth:
+          username: $DOCKERHUB_USERNAME
+          password: $DOCKERHUB_PASSWORD
+
+    working_directory: ~/friend-management
+
+    steps:
+      - run:
+          name: Print go and node version
+          command: |
+            echo "go: $(go version)"
+            echo "node version: $(node -v)"
+            echo "npm version: $(npm -v)"
+
+      - checkout
+
+      - setup_remote_docker:
+          version: 19.03.13
+
+      - run:
+          name: Install redoc-cli and build docs
+          command: |
+            sudo npm install -g redoc-cli@0.10.4
+            redoc-cli bundle ./docs/openapi/friend-management.yaml --options.hideDownloadButton
+
+      - run:
+          name: Install and run gosec
+          command: |
+            curl -sfL https://raw.githubusercontent.com/securego/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin latest
+            gosec --version
+            gosec -no-fail ./...
+
+      - run:
+          name: Install and run golangci-lint
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.41.1
+            golangci-lint run -v
+
+      # Tests are run in the dockerfile
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -f ./docker/Dockerfile -t friend-management:${CIRCLE_SHA1} .
+
+workflows:
+  version: 2
+  build_and_deploy:
+    jobs:
+      - build:
+          context:
+            - docker-hub-creds

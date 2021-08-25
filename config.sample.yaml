@@ -1,0 +1,9 @@
+mongodb:
+  host: localhost
+  port: 27017
+  database: FriendManagement
+  username: root
+  password: password
+
+environment: local
+jwt_key: a-jwt-secret-key

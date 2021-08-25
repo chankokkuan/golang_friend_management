@@ -1,0 +1,349 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Friend Management Service API
+  description: Perform CRUD actions for user and friend.
+
+servers:
+  - url: /
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+        default: 1
+    per_page:
+      in: query
+      name: per_page
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+        default: 200
+    order:
+      in: query
+      name: order
+      schema:
+        type: string
+        description: The direction of the sort
+        enum:
+          - asc
+          - desc
+        default: desc
+    range_start_created_at:
+      in: query
+      name: range_start_created_at
+      schema:
+        type: string
+        description: Range start (inclusive) of Created At
+    range_end_created_at:
+      in: query
+      name: range_end_created_at
+      schema:
+        type: string
+        description: Range end (inclusive) of Created At
+
+  schemas:
+    user:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        friends:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              email:
+                type: string
+        version_seq:
+          type: number
+          format: int
+          readOnly: true
+          example: 0
+        version_rev:
+          type: string
+          description: Revision value of the record version
+          example: 0-xxxxxxxx
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+  responses:
+    404-response:
+      description: HTTP 404 error response
+      content:
+        application/json:
+          examples:
+            not-found:
+              value:
+                message: No record found.
+    
+    200-with-meta-response:
+      description: HTTP 200 response with meta and users
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - meta
+              - users
+            properties:
+              meta:
+                type: object
+                properties:
+                  per_page:
+                    type: number
+                    description: Taken from the query parameter of the request
+              users:
+                type: array
+                items:
+                  $ref: '#/components/schemas/user'
+          examples:
+            No user exist:
+              value:
+                meta:
+                  page: 1
+                  per_page: 200
+                users: []
+            Users exist:
+              value:
+                meta:
+                  page: 1
+                  per_page: 1
+                users:
+                  - id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                    name: John Doe
+                    email: johndoe@example.com
+                    friends: []
+                    version_seq: 0
+                    version_rev: 0-1a2b3c4d
+                    created_at: "2020-12-30T04:21:29.712Z"
+                    updated_at: "2020-12-30T04:21:29.712Z"
+
+    200-response-with-details:
+      description: HTTP 200 response with user details
+      content:
+        application/json:
+          schema:
+            properties:
+              code:
+                type: string
+              user:
+                $ref: '#/components/schemas/user'
+              server_time:
+                type: string
+                format: date-time
+          example:
+            code: success
+            user:
+              id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+              name: John Doe
+              email: johndoe@example.com
+              friends: []
+              version_seq: 0
+              version_rev: 0-1a2b3c4d
+              created_at: "2020-12-30T04:21:29.712Z"
+              updated_at: "2020-12-30T04:21:29.712Z"
+            server_time: "2020-12-30T04:21:29.712Z"
+
+    401-response:
+      description: HTTP 401 error response
+      content:
+        application/json:
+          examples:
+            jwt-no-token:
+              value:
+                message: Bearer token is not found in HTTP Authorization header
+            jwt-bad-token:
+              value:
+                message: Invalid JWT token or signature
+
+    403-response:
+      description: HTTP 403 error response
+      content:
+        application/json:
+          example:
+            message: Access denied
+      
+    409-response:
+      description: "HTTP 409 error response"
+      content:
+        application/json:
+          example:
+            error: "The data version is not the latest version. Please re-enter / refresh the page"
+
+security:
+  - bearerAuth: []
+
+paths:
+  /user:
+    get:
+      summary: Read users
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/per_page'
+        - $ref: '#/components/parameters/order'
+        - $ref: '#/components/parameters/range_start_created_at'
+        - $ref: '#/components/parameters/range_end_created_at'
+      responses:
+        '200':
+          $ref: '#/components/responses/200-with-meta-response'
+        '401':
+          $ref: '#/components/responses/401-response'
+        '403':
+          $ref: '#/components/responses/403-response'
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - name
+              type: object
+              properties:
+                email:
+                  type: string
+                name:
+                  type: string
+      responses:
+         '201':
+          description: Successfully created the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/user'
+    put:
+      summary: Update user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version_rev
+              properties:
+                name:
+                  type: string
+                  example: John Doe
+                email:
+                  type: string
+                  example: johndoe@example.com
+                version_rev:
+                  type: string
+                  example: 0-1a2b3c4d
+      responses:
+        '200':
+          $ref: '#/components/responses/200-response-with-details'
+        '401':
+          $ref: '#/components/responses/401-response'
+        '403':
+          $ref: '#/components/responses/403-response'
+        '404':
+          $ref: '#/components/responses/404-response'
+        '409':
+          $ref: '#/components/responses/409-response'
+
+  /user/{user_id}:
+    get:
+      summary: Get single user
+      parameters:
+        - in: query
+          name: user_id
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/200-response-with-details'
+        '401':
+          $ref: '#/components/responses/401-response'
+        '403':
+          $ref: '#/components/responses/403-response'
+        '404':
+          $ref: '#/components/responses/404-response'
+      
+  /user/friend:
+    put:
+      summary: Add friend for two users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - friend_id
+                - version_rev
+                - friend_version_rev
+              properties:
+                friend_id:
+                  type: string
+                  example: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+                version_rev:
+                  type: string
+                  example: 0-1a2b3c4d
+                friend_version_rev:
+                  type: string
+                  example: 0-1a2b3c4d
+      responses:
+        '200':
+          description: Success response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code:
+                    type: string
+                  message:
+                    type: string
+                  server_time:
+                    type: string
+                    format: date-time
+                example:
+                  code: success
+                  message: Successfully add friend
+                  server_time: "2020-12-30T04:21:29.712Z"
+        '401':
+          $ref: '#/components/responses/401-response'
+        '403':
+          $ref: '#/components/responses/403-response'
+        '404':
+          $ref: '#/components/responses/404-response'
+        '409':
+          $ref: '#/components/responses/409-response'
