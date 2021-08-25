@@ -1,4 +1,9 @@
 ### Friend Management
+# Install go dependency
+```
+go mod download
+```
+
 # Run MongoDB
 ```
 docker run --rm -it --name mongodb \
